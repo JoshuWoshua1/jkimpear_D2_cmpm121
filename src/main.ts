@@ -9,18 +9,23 @@ type Stroke = Point[];
 
 let isDrawing = false;
 let currentStroke: Stroke | null = null;
+let lines: Stroke[] = [];
+let redoStack: Stroke[] = [];
 
 document.body.innerHTML = `
   <h1>D2 assignment</h1>
   <p>Example image asset: <img src="${exampleIconUrl}" class="icon" /></p>
   <canvas id ="myCanvas" width = "256" height = "256"></canvas>
   <button id = "clearButton">clear</button>
+  <button id="undoButton">Undo</button>
+  <button id="redoButton">Redo</button>
 `;
 
 const myCanvas = document.getElementById("myCanvas") as HTMLCanvasElement;
 const ctx = myCanvas.getContext("2d") as CanvasRenderingContext2D;
-
-let lines: Stroke[] = [];
+const undoButton = document.getElementById("undoButton") as HTMLButtonElement;
+const redoButton = document.getElementById("redoButton") as HTMLButtonElement;
+const clearButton = document.getElementById("clearButton") as HTMLButtonElement;
 
 function redrawCanvas() {
   ctx.clearRect(0, 0, myCanvas.width, myCanvas.height);
@@ -42,6 +47,34 @@ function redrawCanvas() {
     }
     ctx.stroke();
     ctx.closePath();
+  }
+  updateButtonStates();
+}
+
+function updateButtonStates() {
+  undoButton.disabled = lines.length === 0;
+  redoButton.disabled = redoStack.length === 0;
+}
+
+function undoStroke() {
+  if (lines.length > 0) {
+    const undoneStroke = lines.pop();
+
+    if (undoneStroke) {
+      redoStack.push(undoneStroke);
+    }
+    myCanvas.dispatchEvent(new Event("drawing-changed"));
+  }
+}
+
+function redoStroke() {
+  if (redoStack.length > 0) {
+    const redoneStroke = redoStack.pop();
+
+    if (redoneStroke) {
+      lines.push(redoneStroke);
+    }
+    myCanvas.dispatchEvent(new Event("drawing-changed"));
   }
 }
 
@@ -72,11 +105,13 @@ myCanvas.addEventListener("mouseleave", () => {
   }
 });
 
-const clearButton = document.getElementById("clearButton")!;
-
 clearButton.addEventListener("click", () => {
   lines = [];
+  redoStack = [];
   myCanvas.dispatchEvent(new Event("drawing-changed"));
 });
+
+undoButton.addEventListener("click", undoStroke);
+redoButton.addEventListener("click", redoStroke);
 
 myCanvas.addEventListener("drawing-changed", redrawCanvas);
