@@ -1,4 +1,3 @@
-import exampleIconUrl from "./noun-paperclip-7598668-00449F.png";
 import "./style.css";
 
 interface Command {
@@ -46,15 +45,41 @@ class MarkerLine implements Command {
   }
 }
 
+class ToolPreview implements Command {
+  private x: number;
+  private y: number;
+  private radius: number;
+
+  constructor(x: number, y: number, lineWidth: number) {
+    this.x = x;
+    this.y = y;
+    this.radius = lineWidth / 2;
+  }
+
+  public updatePosition(x: number, y: number): void {
+    this.x = x;
+    this.y = y;
+  }
+
+  public display(ctx: CanvasRenderingContext2D): void {
+    ctx.fillStyle = "grey";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.closePath();
+  }
+}
+
 let isDrawing = false;
 let currentStroke: MarkerLine | null = null;
 let lines: Command[] = [];
 let redoStack: Command[] = [];
 let currentThickness: number = 2; //defaulted to thick lines (2)
+let currentPreview: ToolPreview | null = null;
+let currentMousePos: Point | null = null;
 
 document.body.innerHTML = `
   <h1>D2 assignment</h1>
-  <p>Example image asset: <img src="${exampleIconUrl}" class="icon" /></p>
   <canvas id ="myCanvas" width = "256" height = "256"></canvas>
   <div class="controls">
     <button id="toolThin">Thin Marker</button>
@@ -84,6 +109,15 @@ function setSelectedTool(thickness: number, selectedButton: HTMLButtonElement) {
 
   // Add the selected class to the active button
   selectedButton.classList.add("selectedTool");
+
+  if (currentMousePos) {
+    currentPreview = new ToolPreview(
+      currentMousePos.x,
+      currentMousePos.y,
+      currentThickness,
+    );
+    myCanvas.dispatchEvent(new Event("drawing-changed"));
+  }
 }
 
 function redrawCanvas() {
@@ -91,6 +125,9 @@ function redrawCanvas() {
 
   for (const command of lines) {
     command.display(ctx);
+  }
+  if (!isDrawing && currentPreview) {
+    currentPreview.display(ctx);
   }
   updateButtonStates();
 }
@@ -128,22 +165,50 @@ function handleStartDrawing(x: number, y: number) {
   isDrawing = true;
   currentStroke = new MarkerLine({ x, y }, currentThickness);
   lines.push(currentStroke);
+  currentPreview = null;
 
   myCanvas.dispatchEvent(new Event("drawing-changed"));
 }
 
 function handleDrawing(x: number, y: number) {
-  if (!isDrawing || !currentStroke) return;
+  if (isDrawing && currentStroke) {
+    currentStroke.drag(x, y);
+    myCanvas.dispatchEvent(new Event("drawing-changed"));
+  }
 
-  currentStroke.drag(x, y);
-  myCanvas.dispatchEvent(new Event("drawing-changed"));
+  currentMousePos = { x, y };
+
+  if (!isDrawing) {
+    if (!currentPreview) {
+      currentPreview = new ToolPreview(x, y, currentThickness);
+    } else {
+      currentPreview.updatePosition(x, y);
+    }
+    myCanvas.dispatchEvent(new Event("drawing-changed"));
+  }
 }
 
 function handleStopDrawing() {
   if (isDrawing) {
     isDrawing = false;
     currentStroke = null;
+
+    if (currentMousePos) {
+      currentPreview = new ToolPreview(
+        currentMousePos.x,
+        currentMousePos.y,
+        currentThickness,
+      );
+    }
+    myCanvas.dispatchEvent(new Event("drawing-changed"));
   }
+}
+
+function handleMouseLeave() {
+  handleStopDrawing();
+
+  currentPreview = null;
+  myCanvas.dispatchEvent(new Event("drawing-changed"));
 }
 
 myCanvas.addEventListener("mousedown", (e: MouseEvent) => {
@@ -155,7 +220,7 @@ myCanvas.addEventListener("mousemove", (e: MouseEvent) => {
 });
 
 myCanvas.addEventListener("mouseup", handleStopDrawing);
-myCanvas.addEventListener("mouseleave", handleStopDrawing);
+myCanvas.addEventListener("mouseleave", handleMouseLeave);
 
 myCanvas.addEventListener("touchstart", (e: TouchEvent) => {
   e.preventDefault();
