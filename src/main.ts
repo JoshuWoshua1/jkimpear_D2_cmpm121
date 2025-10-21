@@ -5,11 +5,18 @@ interface Command {
   display(ctx: CanvasRenderingContext2D): void;
 }
 
+interface Point {
+  x: number;
+  y: number;
+}
+
 class MarkerLine implements Command {
   private points: Point[] = [];
+  private lineWidth: number;
 
-  constructor(initialPoint: Point) {
+  constructor(initialPoint: Point, lineWidth: number) {
     this.points.push(initialPoint);
+    this.lineWidth = lineWidth;
   }
 
   public drag(x: number, y: number): void {
@@ -22,7 +29,7 @@ class MarkerLine implements Command {
     if (stroke.length === 0) return;
 
     ctx.strokeStyle = "black";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = this.lineWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
@@ -39,23 +46,23 @@ class MarkerLine implements Command {
   }
 }
 
-interface Point {
-  x: number;
-  y: number;
-}
-
 let isDrawing = false;
 let currentStroke: MarkerLine | null = null;
 let lines: Command[] = [];
 let redoStack: Command[] = [];
+let currentThickness: number = 2; //defaulted to thick lines (2)
 
 document.body.innerHTML = `
   <h1>D2 assignment</h1>
   <p>Example image asset: <img src="${exampleIconUrl}" class="icon" /></p>
   <canvas id ="myCanvas" width = "256" height = "256"></canvas>
-  <button id = "clearButton">clear</button>
-  <button id="undoButton">Undo</button>
-  <button id="redoButton">Redo</button>
+  <div class="controls">
+    <button id="toolThin">Thin Marker</button>
+    <button id="toolThick">Thick Marker</button>
+    <button id="undoButton">Undo</button>
+    <button id="redoButton">Redo</button>
+    <button id="clearButton">Clear</button>
+  </div>
 `;
 
 const myCanvas = document.getElementById("myCanvas") as HTMLCanvasElement;
@@ -63,6 +70,21 @@ const ctx = myCanvas.getContext("2d") as CanvasRenderingContext2D;
 const undoButton = document.getElementById("undoButton") as HTMLButtonElement;
 const redoButton = document.getElementById("redoButton") as HTMLButtonElement;
 const clearButton = document.getElementById("clearButton") as HTMLButtonElement;
+const toolThinButton = document.getElementById("toolThin") as HTMLButtonElement;
+const toolThickButton = document.getElementById(
+  "toolThick",
+) as HTMLButtonElement;
+
+function setSelectedTool(thickness: number, selectedButton: HTMLButtonElement) {
+  currentThickness = thickness;
+
+  // Clear the selected class from all tool buttons
+  toolThinButton.classList.remove("selectedTool");
+  toolThickButton.classList.remove("selectedTool");
+
+  // Add the selected class to the active button
+  selectedButton.classList.add("selectedTool");
+}
 
 function redrawCanvas() {
   ctx.clearRect(0, 0, myCanvas.width, myCanvas.height);
@@ -104,7 +126,7 @@ function handleStartDrawing(x: number, y: number) {
   redoStack = [];
 
   isDrawing = true;
-  currentStroke = new MarkerLine({ x, y });
+  currentStroke = new MarkerLine({ x, y }, currentThickness);
   lines.push(currentStroke);
 
   myCanvas.dispatchEvent(new Event("drawing-changed"));
@@ -162,4 +184,15 @@ clearButton.addEventListener("click", () => {
 undoButton.addEventListener("click", undoStroke);
 redoButton.addEventListener("click", redoStroke);
 
+toolThinButton.addEventListener(
+  "click",
+  () => setSelectedTool(1, toolThinButton),
+); // Thin line width 1
+toolThickButton.addEventListener(
+  "click",
+  () => setSelectedTool(2, toolThickButton),
+); // Thick line width 2
+
 myCanvas.addEventListener("drawing-changed", redrawCanvas);
+
+setSelectedTool(2, toolThickButton);

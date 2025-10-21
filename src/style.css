@@ -7,3 +7,16 @@
 #myCanvas {
   border: 1px solid #000000;
 }
+
+.controls {
+  margin-top: 10px;
+}
+
+.selectedTool {
+  border: 1px solid #5a5a5a;
+  background-color: #afafaf;
+  font-weight: bold;
+
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) inset;
+  transform: translateY(1px);
+}
