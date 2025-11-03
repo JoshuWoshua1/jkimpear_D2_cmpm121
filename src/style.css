@@ -80,6 +80,93 @@ h1 {
   margin-bottom: 0;
 }
 
+/* Container for the Color Picker Control */
+.color-picker-control {
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.color-picker-control label {
+  order: 1;
+  margin-left: 5px;
+  margin-bottom: 0;
+}
+
+/* Style the Color Picker Input */
+#colorPicker {
+  order: 2;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: 2px solid var(--canvas-border-color);
+  border-radius: var(--border-radius);
+  width: 180px;
+  height: 30px;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.15s;
+  background: var(--control-bg);
+}
+
+#colorPicker::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+#colorPicker::-webkit-color-swatch {
+  border: 1px solid #000000;
+  border-radius: 2px;
+}
+
+#colorPicker:hover {
+  border-color: var(--primary-color);
+}
+
+#rotation-group {
+  display: flex; /* Overridden by JS, but useful as a fallback */
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+#rotation-group label {
+  width: 100%;
+  margin-bottom: 5px;
+  font-size: 1em;
+}
+
+#rotationSlider {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  background: var(--button-hover-bg);
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 5px;
+}
+
+#rotationSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  border: 2px solid var(--text-color);
+}
+
+#rotationSlider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  border: 2px solid var(--text-color);
+}
+
 /* Sticker Group Content Wrapper */
 .sticker-group-content {
   display: flex;

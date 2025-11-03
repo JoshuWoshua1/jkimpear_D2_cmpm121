@@ -17,6 +17,8 @@ let currentStroke: MarkerLine | StickerCommand | null = null;
 let lines: Command[] = [];
 let redoStack: Command[] = [];
 let currentThickness: number = 2; //defaulted to thick lines (2)
+let currentColor: string = "black"; // default to "black"
+let currentRotation: number = 0; // default to 0 degrees
 let currentPreview: ToolPreview | null = null;
 let currentMousePos: Point | null = null;
 let currentTool: "marker" | "sticker" = "marker";
@@ -39,10 +41,12 @@ interface Point {
 class MarkerLine implements Command {
   private points: Point[] = [];
   private lineWidth: number;
+  private color: string;
 
-  constructor(initialPoint: Point, lineWidth: number) {
+  constructor(initialPoint: Point, lineWidth: number, color: string) {
     this.points.push(initialPoint);
     this.lineWidth = lineWidth;
+    this.color = color;
   }
 
   public drag(x: number, y: number): void {
@@ -54,7 +58,7 @@ class MarkerLine implements Command {
 
     if (stroke.length === 0) return;
 
-    ctx.strokeStyle = "black";
+    ctx.strokeStyle = this.color;
     ctx.lineWidth = this.lineWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -76,11 +80,13 @@ class StickerCommand implements Command {
   private x: number;
   private y: number;
   private text: string;
+  private rotation: number;
 
-  constructor(x: number, y: number, text: string) {
+  constructor(x: number, y: number, text: string, rotation: number) {
     this.x = x;
     this.y = y;
     this.text = text;
+    this.rotation = rotation;
   }
 
   public drag(x: number, y: number): void {
@@ -89,11 +95,16 @@ class StickerCommand implements Command {
   }
 
   public display(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate((this.rotation * Math.PI) / 180);
+
     ctx.font = `${STICKER_SIZE}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    ctx.fillText(this.text, this.x, this.y);
+    ctx.fillText(this.text, 0, 0);
+    ctx.restore();
   }
 }
 
@@ -102,17 +113,23 @@ class ToolPreview implements Command {
   private y: number;
   public toolType: "marker" | "sticker";
   public thicknessOrText: number | string;
+  public color?: string;
+  public rotation?: number;
 
   constructor(
     x: number,
     y: number,
     toolType: "marker" | "sticker",
     thicknessOrText: number | string,
+    color?: string,
+    rotation?: number,
   ) {
     this.x = x;
     this.y = y;
     this.toolType = toolType;
     this.thicknessOrText = thicknessOrText;
+    this.color = color!;
+    this.rotation = rotation!;
   }
 
   public updatePosition(x: number, y: number): void {
@@ -123,25 +140,38 @@ class ToolPreview implements Command {
   public display(ctx: CanvasRenderingContext2D): void {
     if (this.toolType === "marker") {
       const radius = (this.thicknessOrText as number) / 2;
-      ctx.fillStyle = "black";
+      ctx.fillStyle = this.color || "black";
       ctx.beginPath();
       ctx.arc(this.x, this.y, radius, 0, 2 * Math.PI);
       ctx.fill();
       ctx.closePath();
     } else { // 'sticker'
       const text = this.thicknessOrText as string;
+
+      ctx.save();
       ctx.globalAlpha = 0.5; // Make the preview slightly transparent
+      if (this.rotation !== undefined && this.rotation !== 0) {
+        ctx.translate(this.x, this.y);
+        ctx.rotate((this.rotation * Math.PI) / 180);
+      }
       ctx.font = `${STICKER_SIZE}px sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(text, this.x, this.y);
-      ctx.globalAlpha = 1.0;
+      const drawX = (this.rotation !== undefined && this.rotation !== 0)
+        ? 0
+        : this.x;
+      const drawY = (this.rotation !== undefined && this.rotation !== 0)
+        ? 0
+        : this.y;
+      ctx.fillText(text, drawX, drawY);
+
+      ctx.restore();
     }
   }
 }
 
 document.body.innerHTML = `
-  <h1>D2 assignment</h1>
+  <h1>Super Duper Sticker Board++</h1>
   <canvas id ="myCanvas" width = "256" height = "256"></canvas>
   <div class="controls">
     <div class="tool-group">
@@ -149,7 +179,16 @@ document.body.innerHTML = `
       <button id="toolThin">Thin</button>
       <button id="toolNormal">Normal</button>
       <button id="toolThick">Thick</button>
+      <div class="color-picker-control">
+        <input type="color" id="colorPicker" value="#000000">
+        <label for="colorPicker">Color:</label>
+      </div>
     </div>
+    <div class="tool-group" id="rotation-group"> 
+      <label for="rotationSlider">Rotation: <span id="rotationValue">0</span>°</label>
+      <input type="range" id="rotationSlider" min="0" max="360" value="0">
+    </div>
+
     <div class="tool-group">
       <label>Stickers:</label>
       <div id="stickerButtonContainer"></div> 
@@ -174,6 +213,7 @@ const toolNormalButton = document.getElementById(
 const toolThickButton = document.getElementById(
   "toolThick",
 ) as HTMLButtonElement;
+const colorPicker = document.getElementById("colorPicker") as HTMLInputElement;
 const stickerButtonContainer = document.getElementById(
   "stickerButtonContainer",
 ) as HTMLDivElement;
@@ -183,12 +223,30 @@ const customStickerButton = document.getElementById(
 const exportButton = document.getElementById(
   "exportButton",
 ) as HTMLButtonElement;
+const rotationSlider = document.getElementById(
+  "rotationSlider",
+) as HTMLInputElement;
+const rotationValueSpan = document.getElementById(
+  "rotationValue",
+) as HTMLSpanElement;
+const rotationGroup = document.getElementById(
+  "rotation-group",
+) as HTMLDivElement;
 
 let toolButtons: HTMLButtonElement[] = [
   toolThinButton,
+  toolNormalButton,
   toolThickButton,
   customStickerButton,
 ];
+
+function updateRotationDisplay() {
+  rotationValueSpan.textContent = currentRotation.toString();
+}
+
+function updateToolVisibility() {
+  rotationGroup.style.display = currentTool === "sticker" ? "flex" : "none";
+}
 
 function setSelectedTool(
   tool: "marker" | "sticker",
@@ -203,6 +261,8 @@ function setSelectedTool(
     currentSticker = value as string;
   }
 
+  updateToolVisibility();
+
   toolButtons.forEach((btn) => btn.classList.remove("selectedTool"));
 
   selectedButton.classList.add("selectedTool");
@@ -214,6 +274,7 @@ function setSelectedTool(
         currentMousePos.y,
         "marker",
         currentThickness,
+        currentColor,
       );
     } else {
       currentPreview = new ToolPreview(
@@ -221,6 +282,8 @@ function setSelectedTool(
         currentMousePos.y,
         "sticker",
         currentSticker,
+        undefined,
+        currentRotation,
       );
     }
     myCanvas.dispatchEvent(new Event("drawing-changed"));
@@ -351,9 +414,9 @@ function handleStartDrawing(x: number, y: number) {
   let newCommand: Command;
 
   if (currentTool === "marker") {
-    newCommand = new MarkerLine({ x, y }, currentThickness);
+    newCommand = new MarkerLine({ x, y }, currentThickness, currentColor);
   } else { // 'sticker'
-    newCommand = new StickerCommand(x, y, currentSticker);
+    newCommand = new StickerCommand(x, y, currentSticker, currentRotation);
   }
 
   currentStroke = newCommand as (MarkerLine | StickerCommand);
@@ -377,16 +440,28 @@ function handleDrawing(x: number, y: number) {
       ? currentThickness
       : currentSticker;
 
+    const color = currentTool === "marker" ? currentColor : undefined;
+    const rotation = currentTool === "sticker" ? currentRotation : undefined;
+
     if (!currentPreview) {
-      currentPreview = new ToolPreview(x, y, currentTool, value);
+      currentPreview = new ToolPreview(x, y, currentTool, value, color);
     } else {
       currentPreview.updatePosition(x, y);
 
       if (
         currentPreview.toolType !== currentTool ||
-        currentPreview.thicknessOrText !== value
+        currentPreview.thicknessOrText !== value ||
+        currentPreview.color !== color ||
+        currentPreview.rotation !== rotation
       ) {
-        currentPreview = new ToolPreview(x, y, currentTool, value);
+        currentPreview = new ToolPreview(
+          x,
+          y,
+          currentTool,
+          value,
+          color,
+          rotation,
+        );
       }
     }
     myCanvas.dispatchEvent(new Event("drawing-changed"));
@@ -402,11 +477,15 @@ function handleStopDrawing() {
       const value = currentTool === "marker"
         ? currentThickness
         : currentSticker;
+      const color = currentTool === "marker" ? currentColor : undefined;
+      const rotation = currentTool === "sticker" ? currentRotation : undefined;
       currentPreview = new ToolPreview(
         currentMousePos.x,
         currentMousePos.y,
         currentTool,
         value,
+        color,
+        rotation,
       );
     }
     myCanvas.dispatchEvent(new Event("drawing-changed"));
@@ -475,5 +554,18 @@ exportButton.addEventListener("click", handleExport);
 
 myCanvas.addEventListener("drawing-changed", redrawCanvas);
 
-setSelectedTool("marker", 2, toolThickButton);
+colorPicker.addEventListener("input", () => {
+  currentColor = colorPicker.value;
+  myCanvas.dispatchEvent(new Event("drawing-changed"));
+});
+
+rotationSlider.addEventListener("input", () => {
+  currentRotation = parseInt(rotationSlider.value);
+  updateRotationDisplay();
+  myCanvas.dispatchEvent(new Event("drawing-changed"));
+});
+
+setSelectedTool("marker", 2, toolNormalButton);
 createStickerButtons();
+updateRotationDisplay();
+updateToolVisibility();
