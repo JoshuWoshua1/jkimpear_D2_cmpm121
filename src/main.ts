@@ -23,6 +23,10 @@ let currentTool: "marker" | "sticker" = "marker";
 let currentSticker: string = availableStickers[0]!.text;
 const STICKER_SIZE = 30; //default (30) for rendering sticker
 
+const HIGH_RES_SIZE = 1024;
+const BASE_SIZE = 256;
+const SCALE_FACTOR = HIGH_RES_SIZE / BASE_SIZE; // Should result in 4x size
+
 interface Command {
   display(ctx: CanvasRenderingContext2D): void;
 }
@@ -153,6 +157,7 @@ document.body.innerHTML = `
     <button id="undoButton">Undo</button>
     <button id="redoButton">Redo</button>
     <button id="clearButton">Clear</button>
+    <button id="exportButton">Export Image</button>
   </div>
 `;
 
@@ -170,6 +175,9 @@ const stickerButtonContainer = document.getElementById(
 ) as HTMLDivElement;
 const customStickerButton = document.getElementById(
   "customStickerButton",
+) as HTMLButtonElement;
+const exportButton = document.getElementById(
+  "exportButton",
 ) as HTMLButtonElement;
 
 let toolButtons: HTMLButtonElement[] = [
@@ -262,15 +270,46 @@ function handleCustomSticker() {
   }
 }
 
+function handleExport() {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = HIGH_RES_SIZE;
+  exportCanvas.height = HIGH_RES_SIZE;
+  const exportCtx = exportCanvas.getContext("2d");
+
+  if (!exportCtx) {
+    console.error("Could not get context for export canvas.");
+    return;
+  }
+
+  exportCtx.fillStyle = "white";
+  exportCtx.fillRect(0, 0, HIGH_RES_SIZE, HIGH_RES_SIZE);
+
+  exportCtx.scale(SCALE_FACTOR, SCALE_FACTOR);
+
+  replayCommands(exportCtx, false);
+
+  const anchor = document.createElement("a");
+  anchor.href = exportCanvas.toDataURL("image/png");
+  anchor.download = "sketchpad-highres.png";
+  anchor.click();
+}
+
+function replayCommands(
+  context: CanvasRenderingContext2D,
+  includePreview: boolean,
+) {
+  for (const command of lines) {
+    command.display(context);
+  }
+
+  if (includePreview && !isDrawing && currentPreview) {
+    currentPreview.display(context);
+  }
+}
+
 function redrawCanvas() {
   ctx.clearRect(0, 0, myCanvas.width, myCanvas.height);
-
-  for (const command of lines) {
-    command.display(ctx);
-  }
-  if (!isDrawing && currentPreview) {
-    currentPreview.display(ctx);
-  }
+  replayCommands(ctx, true);
   updateButtonStates();
 }
 
@@ -424,6 +463,7 @@ toolThickButton.addEventListener(
   () => setSelectedTool("marker", 2, toolThickButton),
 );
 customStickerButton.addEventListener("click", handleCustomSticker);
+exportButton.addEventListener("click", handleExport);
 
 myCanvas.addEventListener("drawing-changed", redrawCanvas);
 
