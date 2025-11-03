@@ -6,7 +6,7 @@ interface StickerData {
   isCustom: boolean;
 }
 
-let availableStickers: StickerData[] = [
+const availableStickers: StickerData[] = [
   { id: "poo", text: "💩", isCustom: false },
   { id: "toilet", text: "🚽", isCustom: false },
   { id: "drop", text: "💧", isCustom: false },
