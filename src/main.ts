@@ -145,14 +145,15 @@ document.body.innerHTML = `
   <canvas id ="myCanvas" width = "256" height = "256"></canvas>
   <div class="controls">
     <div class="tool-group">
-        <label>Marker:</label>
-        <button id="toolThin">Thin</button>
-        <button id="toolThick">Thick</button>
+      <label>Marker:</label>
+      <button id="toolThin">Thin</button>
+      <button id="toolNormal">Normal</button>
+      <button id="toolThick">Thick</button>
     </div>
     <div class="tool-group">
-        <label>Stickers:</label>
-        <div id="stickerButtonContainer"></div> 
-        <button id="customStickerButton">+ Custom</button>
+      <label>Stickers:</label>
+      <div id="stickerButtonContainer"></div> 
+      <button id="customStickerButton">+ Custom</button>
     </div>
     <button id="undoButton">Undo</button>
     <button id="redoButton">Redo</button>
@@ -167,6 +168,9 @@ const undoButton = document.getElementById("undoButton") as HTMLButtonElement;
 const redoButton = document.getElementById("redoButton") as HTMLButtonElement;
 const clearButton = document.getElementById("clearButton") as HTMLButtonElement;
 const toolThinButton = document.getElementById("toolThin") as HTMLButtonElement;
+const toolNormalButton = document.getElementById(
+  "toolNormal",
+) as HTMLButtonElement;
 const toolThickButton = document.getElementById(
   "toolThick",
 ) as HTMLButtonElement;
@@ -458,9 +462,13 @@ toolThinButton.addEventListener(
   "click",
   () => setSelectedTool("marker", 1, toolThinButton),
 );
+toolNormalButton.addEventListener(
+  "click",
+  () => setSelectedTool("marker", 2, toolNormalButton),
+);
 toolThickButton.addEventListener(
   "click",
-  () => setSelectedTool("marker", 2, toolThickButton),
+  () => setSelectedTool("marker", 4, toolThickButton),
 );
 customStickerButton.addEventListener("click", handleCustomSticker);
 exportButton.addEventListener("click", handleExport);

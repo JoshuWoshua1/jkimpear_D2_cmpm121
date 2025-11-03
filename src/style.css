@@ -1,22 +1,180 @@
-.icon {
-  width: 64px;
-  vertical-align: top;
-  border: 1px solid salmon;
+:root {
+  --canvas-border-color: #333;
+  --bg-color: #1e1e1e;
+  --text-color: #f0f0f0;
+  --control-bg: #2d2d2d;
+  --button-default-bg: #3c3c3c;
+  --button-hover-bg: #4a4a4a;
+  --button-active-bg: #1c1c1c;
+  --primary-color: #4a90e2;
+  --error-color: #f05060;
+  --border-radius: 4px;
 }
 
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  margin: 0;
+}
+
+h1 {
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  font-weight: 300;
+}
+
+/* Canvas Styling */
 #myCanvas {
-  border: 1px solid #000000;
+  border: 4px solid var(--canvas-border-color);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+  background-color: white;
+  margin-bottom: 20px;
 }
 
+/* Controls Container Layout */
 .controls {
-  margin-top: 10px;
+  width: 256px;
+  padding: 15px;
+  background-color: var(--control-bg);
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
-.selectedTool {
-  border: 1px solid #5a5a5a;
-  background-color: #afafaf;
-  font-weight: bold;
+/* Tool Group Styling */
+.tool-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #3a3a3a;
+}
 
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) inset;
+.tool-group:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.tool-group label {
+  font-size: 0.9em;
+  font-weight: bold;
+  color: var(--text-color);
+  width: 100%;
+  margin-right: 0;
+  margin-bottom: 10px;
+}
+
+/* Marker Group specific adjustments */
+.tool-group:nth-child(1) label {
+  width: auto;
+  margin-right: 10px;
+  margin-bottom: 0;
+}
+
+/* Sticker Group Content Wrapper */
+.sticker-group-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Sticker Button Grid */
+#stickerButtonContainer {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-auto-flow: row dense;
+  gap: 5px;
+  max-height: 80px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 5px;
+  margin-bottom: 10px;
+}
+
+/* Button Base Styles */
+button {
+  padding: 8px 12px;
+  margin-right: 5px;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  background-color: var(--button-default-bg);
+  color: var(--text-color);
+  transition: background-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+button:hover {
+  background-color: var(--button-hover-bg);
+}
+
+button:active {
+  background-color: var(--button-active-bg);
   transform: translateY(1px);
+}
+
+/* Disabled Button Styles */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Sticker Buttons should take up their grid cell space */
+#stickerButtonContainer button {
+  margin: 0;
+  padding: 5px 0;
+  min-width: 0;
+  font-size: 1.1em;
+}
+
+/* Highlighted Tool */
+.selectedTool {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  box-shadow: 0 0 0 2px var(--primary-color);
+  transform: none;
+}
+
+/* Action Buttons Group */
+.action-group {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  border-bottom: none;
+}
+
+.action-group button {
+  margin: 0;
+  padding: 12px 10px;
+  grid-column: span 1;
+}
+
+/* Make Clear button span 2 columns and remove it from the grid */
+#clearButton {
+  background-color: var(--error-color);
+  grid-column: 1 / -1;
+}
+
+#clearButton:hover {
+  background-color: #e04050;
+}
+
+/* Make Export button span 2 columns as well */
+#exportButton {
+  grid-column: 1 / -1;
+}
+
+.action-group #undoButton,
+.action-group #redoButton {
+  padding: 10px;
 }
