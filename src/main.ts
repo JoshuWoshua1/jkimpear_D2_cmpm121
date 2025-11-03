@@ -1,10 +1,27 @@
 import "./style.css";
 
-enum StickerTool {
-  Poop = "💩",
-  Toilet = "🚽",
-  Water = "💧",
+interface StickerData {
+  id: string;
+  text: string;
+  isCustom: boolean;
 }
+
+let availableStickers: StickerData[] = [
+  { id: "poo", text: "💩", isCustom: false },
+  { id: "toilet", text: "🚽", isCustom: false },
+  { id: "drop", text: "💧", isCustom: false },
+];
+
+let isDrawing = false;
+let currentStroke: MarkerLine | StickerCommand | null = null;
+let lines: Command[] = [];
+let redoStack: Command[] = [];
+let currentThickness: number = 2; //defaulted to thick lines (2)
+let currentPreview: ToolPreview | null = null;
+let currentMousePos: Point | null = null;
+let currentTool: "marker" | "sticker" = "marker";
+let currentSticker: string = availableStickers[0]!.text;
+const STICKER_SIZE = 30; //default (30) for rendering sticker
 
 interface Command {
   display(ctx: CanvasRenderingContext2D): void;
@@ -119,17 +136,6 @@ class ToolPreview implements Command {
   }
 }
 
-let isDrawing = false;
-let currentStroke: MarkerLine | StickerCommand | null = null;
-let lines: Command[] = [];
-let redoStack: Command[] = [];
-let currentThickness: number = 2; //defaulted to thick lines (2)
-let currentPreview: ToolPreview | null = null;
-let currentMousePos: Point | null = null;
-let currentTool: "marker" | "sticker" = "marker";
-let currentSticker: StickerTool = StickerTool.Poop;
-const STICKER_SIZE = 30; //default (30) for rendering sticker
-
 document.body.innerHTML = `
   <h1>D2 assignment</h1>
   <canvas id ="myCanvas" width = "256" height = "256"></canvas>
@@ -141,9 +147,8 @@ document.body.innerHTML = `
     </div>
     <div class="tool-group">
         <label>Stickers:</label>
-        <button id="toolPoop">${StickerTool.Poop}</button>
-        <button id="toolStar">${StickerTool.Toilet}</button>
-        <button id="toolWave">${StickerTool.Water}</button>
+        <div id="stickerButtonContainer"></div> 
+        <button id="customStickerButton">+ Custom</button>
     </div>
     <button id="undoButton">Undo</button>
     <button id="redoButton">Redo</button>
@@ -160,22 +165,22 @@ const toolThinButton = document.getElementById("toolThin") as HTMLButtonElement;
 const toolThickButton = document.getElementById(
   "toolThick",
 ) as HTMLButtonElement;
-const toolPoopButton = document.getElementById(
-  "toolPoop",
+const stickerButtonContainer = document.getElementById(
+  "stickerButtonContainer",
+) as HTMLDivElement;
+const customStickerButton = document.getElementById(
+  "customStickerButton",
 ) as HTMLButtonElement;
-const toolStarButton = document.getElementById("toolStar") as HTMLButtonElement;
-const toolWaveButton = document.getElementById("toolWave") as HTMLButtonElement;
-const toolButtons: HTMLButtonElement[] = [
+
+let toolButtons: HTMLButtonElement[] = [
   toolThinButton,
   toolThickButton,
-  toolPoopButton,
-  toolStarButton,
-  toolWaveButton,
+  customStickerButton,
 ];
 
 function setSelectedTool(
   tool: "marker" | "sticker",
-  value: number | StickerTool,
+  value: number | string,
   selectedButton: HTMLButtonElement,
 ) {
   currentTool = tool;
@@ -183,7 +188,7 @@ function setSelectedTool(
   if (tool === "marker") {
     currentThickness = value as number;
   } else {
-    currentSticker = value as StickerTool;
+    currentSticker = value as string;
   }
 
   toolButtons.forEach((btn) => btn.classList.remove("selectedTool"));
@@ -207,6 +212,53 @@ function setSelectedTool(
       );
     }
     myCanvas.dispatchEvent(new Event("drawing-changed"));
+  }
+}
+
+function createStickerButtons() {
+  stickerButtonContainer.innerHTML = "";
+
+  toolButtons = toolButtons.filter((btn) =>
+    !btn.classList.contains("sticker-tool")
+  );
+
+  availableStickers.forEach((sticker) => {
+    const button = document.createElement("button");
+    button.id = `tool${sticker.id}`;
+    button.textContent = sticker.text;
+    button.classList.add("sticker-tool");
+
+    button.addEventListener("click", () => {
+      setSelectedTool("sticker", sticker.text, button);
+    });
+
+    stickerButtonContainer.appendChild(button);
+    toolButtons.push(button);
+  });
+}
+
+function handleCustomSticker() {
+  const stickerText = prompt("Enter text for your custom sticker:", "✨");
+
+  if (stickerText && stickerText.trim().length > 0) {
+    const newSticker: StickerData = {
+      id: `custom${Date.now()}`,
+      text: stickerText.trim().substring(0, 3),
+      isCustom: true,
+    };
+
+    availableStickers.push(newSticker);
+
+    createStickerButtons();
+
+    const newButton = document.getElementById(
+      `tool${newSticker.id}`,
+    ) as HTMLButtonElement;
+    if (newButton) {
+      setSelectedTool("sticker", newSticker.text, newButton);
+    }
+  } else if (stickerText !== null) {
+    alert("Sticker text cannot be empty.");
   }
 }
 
@@ -251,16 +303,19 @@ function redoStroke() {
 
 function handleStartDrawing(x: number, y: number) {
   redoStack = [];
-
   isDrawing = true;
 
+  let newCommand: Command;
+
   if (currentTool === "marker") {
-    currentStroke = new MarkerLine({ x, y }, currentThickness);
+    newCommand = new MarkerLine({ x, y }, currentThickness);
   } else { // 'sticker'
-    currentStroke = new StickerCommand(x, y, currentSticker);
+    newCommand = new StickerCommand(x, y, currentSticker);
   }
 
-  lines.push(currentStroke);
+  currentStroke = newCommand as (MarkerLine | StickerCommand);
+  lines.push(newCommand);
+
   currentPreview = null; // Hide preview while drawing
 
   myCanvas.dispatchEvent(new Event("drawing-changed"));
@@ -275,12 +330,15 @@ function handleDrawing(x: number, y: number) {
   currentMousePos = { x, y };
 
   if (!isDrawing) {
-    const value = currentTool === "marker" ? currentThickness : currentSticker;
+    const value: number | string = currentTool === "marker"
+      ? currentThickness
+      : currentSticker;
 
     if (!currentPreview) {
       currentPreview = new ToolPreview(x, y, currentTool, value);
     } else {
       currentPreview.updatePosition(x, y);
+
       if (
         currentPreview.toolType !== currentTool ||
         currentPreview.thicknessOrText !== value
@@ -365,20 +423,9 @@ toolThickButton.addEventListener(
   "click",
   () => setSelectedTool("marker", 2, toolThickButton),
 );
-
-toolPoopButton.addEventListener(
-  "click",
-  () => setSelectedTool("sticker", StickerTool.Poop, toolPoopButton),
-);
-toolStarButton.addEventListener(
-  "click",
-  () => setSelectedTool("sticker", StickerTool.Toilet, toolStarButton),
-);
-toolWaveButton.addEventListener(
-  "click",
-  () => setSelectedTool("sticker", StickerTool.Water, toolWaveButton),
-);
+customStickerButton.addEventListener("click", handleCustomSticker);
 
 myCanvas.addEventListener("drawing-changed", redrawCanvas);
 
 setSelectedTool("marker", 2, toolThickButton);
+createStickerButtons();
